@@ -130,13 +130,13 @@ public class detectiveNB {
 
         for (int i = 1; i < numfeatures+1; i++){
             if(entry.get(i) == 0){
-                outcomeNormal *=likelihood1given0.get(i-1)/(double)pp1;
-                outcomeAbnormal *= likelihood0given0.get(i-1)/(double)pp0;
-                normalizingFactor*=nmcArr0[i-1]/(double) sample;
+                outcomeNormal *=(likelihood1given0.get(i-1)/(double)pp1) + 0.00000000001;
+                outcomeAbnormal *= (likelihood0given0.get(i-1)/(double)pp0) + 0.000000001;
+                normalizingFactor*=(nmcArr0[i-1]/(double)sample)+ 0.000000000000001;
             }else{
-                outcomeNormal *= likelihood1given1.get(i-1)/(double) pp1;
-                outcomeAbnormal *= likelihood0given1.get(i-1)/(double) pp0;
-                normalizingFactor *= nmcArr1[i-1]/(double)sample;
+                outcomeNormal *= (likelihood1given1.get(i-1)/(double)pp1)+0.000000000001;
+                outcomeAbnormal *= (likelihood0given1.get(i-1)/(double)pp0)+0.000000000001;
+                normalizingFactor *= nmcArr1[i-1]/(double)sample+0.00000000000001;
             }
         }
 
@@ -152,13 +152,29 @@ public class detectiveNB {
 
     public void detect(){
         int count =0;
+        int count0s= 0;
+        int count1s =0;
+        int total1s=0;
+        int total0s= 0;
+
         for (ArrayList<Integer> entry : testData){
-            if(calculateEntry(entry)){
-                count++;
+
+            if (entry.get(0).equals(0)){
+                if(calculateEntry(entry)){
+                    count0s++;
+                }
+                total0s++;
+            } else{
+                if(calculateEntry(entry)){
+                    count1s++;
+                }
+                total1s++;
             }
         }
-
-        System.out.print("Correct num of Guesses: " + count+"/"+testData.size() + "("+count/(double)testData.size()+")");
+        count=count0s+count1s;
+        System.out.print("total: " + (count)+"/"+testData.size() + "("+count/(double)testData.size()+")"+
+                " abnormal: " + count0s +"/"+total0s+"("+count0s/(double)total0s +") normal: "+ count1s+
+                "/"+total1s+"("+count1s/(double)total1s+")");
     }
 
     public void displayTrainData(){
@@ -189,22 +205,26 @@ public class detectiveNB {
     public static void main (String [] args){
         detectiveNB detective = new detectiveNB(args[0],args[1]);
         //detective.displayTrainData();
+
         detective.train();
         detective.detect();
+
+
+
         /*
         ArrayList<Integer> aListt = detective.calculateLikelihood(0,1);
 
-        */
 
         //int [] array = detective.getNormalizingConstant(0);
 
-        /*
+
         System.out.println("--------------------------------------------");
 
         for(Integer val :aListt){
             System.out.print(val + ",");
         }
         */
+
         /*
         for(int i = 0; i<array.length; i++){
             System.out.print(array[i]+ ",");
