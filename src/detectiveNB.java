@@ -1,6 +1,6 @@
 import java.io.*;
 import java.lang.reflect.Array;
-import java.util.ArrayList;
+import java.util.*;
 
 public class detectiveNB {
     private ArrayList<ArrayList<Integer>> trainData;
@@ -24,6 +24,24 @@ public class detectiveNB {
         numfeatures = getTotalDataFeatures(trainData);
         pp0 = 0;
         pp1 = 0;
+    }
+
+    private static class Pair {
+        int i;
+        double j;
+
+        public Pair (int x, double y){
+            i = x;
+            j = y;
+        }
+
+        public int getX(){
+            return i;
+        }
+
+        public double getY(){
+            return j;
+        }
     }
 
 
@@ -143,12 +161,156 @@ public class detectiveNB {
         double normalProb = outcomeNormal/ normalizingFactor;
         double abnormalProb = outcomeAbnormal/normalizingFactor;
 
+        //System.out.println("normalprob: "+normalProb +"abnormal prob: "+ abnormalProb);
         if (result == 0){
             return abnormalProb > normalProb;
         }else{
             return normalProb > abnormalProb;
         }
     }
+
+
+    /** Calculates the Euclidean distance between the given entry(person in the train data)
+     * and all the points in the training data
+     *
+     * uses and returns a Priority Queue to avoid the need to sort data
+     * */
+    PriorityQueue<Pair> calculateEuclideanDistance(ArrayList<Integer> entry){
+        PriorityQueue<Pair> allPoints = new PriorityQueue<Pair>(numfeatures - 1, new Comparator<Pair>() {
+            @Override
+            public int compare(Pair o1, Pair o2) {
+                return Double.compare(o1.getY(), o2.getY());
+            }
+        });
+
+        double presquareroot = 0.0;
+        int temp;
+        double sqrtoftemp;
+
+        for(int i=0; i < sample; i++){
+            for (int j = 1; j<numfeatures; j++){
+                temp = entry.get(j) - trainData.get(i).get(j);
+
+                presquareroot += temp*temp;
+            }
+            sqrtoftemp = Math.sqrt(presquareroot);
+            presquareroot = 0.0;
+            Pair tempPair = new Pair(i,sqrtoftemp);
+            allPoints.add(tempPair);
+        }
+        return allPoints;
+    }
+
+    PriorityQueue<Pair> calculateHammingDistance(ArrayList<Integer> entry){
+        PriorityQueue<Pair> allPoints = new PriorityQueue<Pair>(numfeatures - 1, new Comparator<Pair>() {
+            @Override
+            public int compare(Pair o1, Pair o2) {
+                return Double.compare(o1.getY(), o2.getY());
+            }
+        });
+
+       int mismatch = 0;
+
+        for(int i=0; i < sample; i++){
+            for (int j = 1; j<numfeatures; j++){
+                if(!entry.get(j).equals(trainData.get(i).get(j))){
+                    mismatch++;
+                }
+            }
+            Pair tempPair = new Pair(i,mismatch);
+            allPoints.add(tempPair);
+        }
+        return allPoints;
+    }
+
+
+    boolean decideBasedOnKthNearestElements(ArrayList<Integer> entry, PriorityQueue<Pair> EucList, int k){
+        int localK = 0;
+        int near1 = 0;
+        int near0 =0;
+        while (localK < k){
+            Pair pair = EucList.poll();
+            if(trainData.get(pair.getX()).get(0) == 0){
+                near0++;
+            }else{
+                near1++;
+            }
+            localK++;
+        }
+
+        if(near0 == near1){
+            System.out.println("You've got equality");
+        }
+
+        if(near0>= near1){
+
+            return entry.get(0) == 0;
+
+        }else{
+            return entry.get(0) == 1;
+        }
+    }
+    void detectForKthHamm(int k){
+        int count;
+        int count0s= 0;
+        int count1s =0;
+        int total1s=0;
+        int total0s= 0;
+
+
+        for (ArrayList<Integer> entry : testData) {
+            PriorityQueue<Pair> HamList = calculateEuclideanDistance(entry);
+
+            if(entry.get(0).equals(0)){
+                if(decideBasedOnKthNearestElements(entry, HamList, k)){
+                    count0s++;
+                }
+                total0s++;
+            }else{
+                if(decideBasedOnKthNearestElements(entry, HamList, k)){
+                    count1s++;
+                }
+                total1s++;
+            }
+        }
+
+        count=count0s+count1s;
+        System.out.print("total: " + (count)+"/"+testData.size() + "("+count/(double)testData.size()+")"+
+                " abnormal: " + count0s +"/"+total0s+"("+count0s/(double)total0s +") normal: "+ count1s+
+                "/"+total1s+"("+count1s/(double)total1s+")");
+    }
+
+    void detectForKthEuc(int k){
+        int count;
+        int count0s= 0;
+        int count1s =0;
+        int total1s=0;
+        int total0s= 0;
+
+
+        for (ArrayList<Integer> entry : testData) {
+            PriorityQueue<Pair> EucList = calculateHammingDistance(entry);
+
+            if(entry.get(0).equals(0)){
+                if(decideBasedOnKthNearestElements(entry, EucList, k)){
+                    count0s++;
+                }
+                total0s++;
+            }else{
+                if(decideBasedOnKthNearestElements(entry, EucList, k)){
+                    count1s++;
+                }
+                total1s++;
+            }
+        }
+
+        count=count0s+count1s;
+        System.out.print("total: " + (count)+"/"+testData.size() + "("+count/(double)testData.size()+")"+
+                " abnormal: " + count0s +"/"+total0s+"("+count0s/(double)total0s +") normal: "+ count1s+
+                "/"+total1s+"("+count1s/(double)total1s+")");
+    }
+
+
 
     public void detect(){
         int count =0;
@@ -204,10 +366,17 @@ public class detectiveNB {
 
     public static void main (String [] args){
         detectiveNB detective = new detectiveNB(args[0],args[1]);
-        //detective.displayTrainData();
 
-        detective.train();
-        detective.detect();
+
+        if(args.length == 2){
+            System.out.println();
+            detective.train();
+            detective.detect();
+        }else{
+            System.out.println("Knth Neareast Algorithm:");
+            detective.detectForKthHamm(Integer.parseInt(args[2]));
+        }
+
 
 
 
@@ -232,6 +401,8 @@ public class detectiveNB {
         */
 
         System.out.println();
+
     }
+
 
 }
